@@ -1,0 +1,133 @@
+from contextlib import asynccontextmanager
+from typing import Annotated
+from uuid import uuid4
+
+import psycopg
+from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel, Field
+from qdrant_client import QdrantClient, models
+from qdrant_client.http.exceptions import UnexpectedResponse
+
+from examples.hybrid_search_api.app.config import settings
+from examples.hybrid_search_api.app.db import connect
+from examples.hybrid_search_api.app.embeddings import demo_embedding
+from examples.hybrid_search_api.app.retrieval import bm25_rank, reciprocal_rank_fusion
+
+
+class DocumentInput(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    content: str = Field(min_length=1, max_length=20_000)
+
+
+class DocumentCreated(BaseModel):
+    id: str
+    status: str
+
+
+def qdrant_client() -> QdrantClient:
+    return QdrantClient(url=settings.qdrant_url)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    client = qdrant_client()
+    try:
+        if not client.collection_exists(settings.qdrant_collection):
+            client.create_collection(
+                collection_name=settings.qdrant_collection,
+                vectors_config=models.VectorParams(
+                    size=settings.vector_size, distance=models.Distance.COSINE
+                ),
+            )
+    finally:
+        client.close()
+    yield
+
+
+app = FastAPI(
+    title="Hybrid Search Playbook API",
+    description="Educational BM25 + Qdrant search with PostgreSQL outbox ingestion.",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    try:
+        with connect() as connection:
+            connection.execute("SELECT 1")
+    except psycopg.Error as error:
+        raise HTTPException(status_code=503, detail="PostgreSQL is unavailable") from error
+    return {"status": "ok"}
+
+
+@app.post("/documents", response_model=DocumentCreated, status_code=202)
+def create_document(document: DocumentInput) -> DocumentCreated:
+    document_id = str(uuid4())
+    payload = {
+        "document_id": document_id,
+        "title": document.title,
+        "content": document.content,
+    }
+    try:
+        with connect() as connection:
+            connection.execute(
+                "INSERT INTO documents (id, title, content) VALUES (%s, %s, %s)",
+                (document_id, document.title, document.content),
+            )
+            connection.execute(
+                """
+                INSERT INTO outbox_events (event_type, aggregate_id, payload)
+                VALUES ('document.upsert', %s, %s)
+                """,
+                (document_id, psycopg.types.json.Jsonb(payload)),
+            )
+    except psycopg.Error as error:
+        raise HTTPException(status_code=503, detail="Could not save document") from error
+    return DocumentCreated(id=document_id, status="accepted_for_indexing")
+
+
+@app.get("/search")
+def search(
+    q: Annotated[str, Query(min_length=1, max_length=500)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> dict[str, object]:
+    with connect() as connection:
+        rows = connection.execute(
+            "SELECT id::text AS id, title, content FROM documents"
+        ).fetchall()
+    documents = [dict(row) for row in rows]
+    by_id = {document["id"]: document for document in documents}
+    lexical = bm25_rank(q, documents, limit)
+
+    semantic: list[str] = []
+    client = qdrant_client()
+    try:
+        points = client.query_points(
+            collection_name=settings.qdrant_collection,
+            query=demo_embedding(q, settings.vector_size),
+            limit=limit,
+        ).points
+        semantic = [str(point.id) for point in points if str(point.id) in by_id]
+    except UnexpectedResponse as error:
+        raise HTTPException(status_code=503, detail="Qdrant search failed") from error
+    finally:
+        client.close()
+
+    fused = reciprocal_rank_fusion([lexical, semantic])[:limit]
+    return {
+        "query": q,
+        "results": [
+            {
+                **by_id[document_id],
+                "rrf_score": score,
+                "matched_by": [
+                    source
+                    for source, ranking in (("bm25", lexical), ("qdrant", semantic))
+                    if document_id in ranking
+                ],
+            }
+            for document_id, score in fused
+        ],
+    }

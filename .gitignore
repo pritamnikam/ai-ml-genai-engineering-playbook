@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.ipynb_checkpoints/
+.env*
+!.env.example
+.coverage
+htmlcov/
+*.log
+.DS_Store
+.azure/.pending-create
