@@ -31,6 +31,15 @@ as the notebook kernel. Start with `notebooks/001-python-for-ai.ipynb`; use
 docker compose -f examples/hybrid_search_api/compose.yaml up --build
 ```
 
+PostgreSQL is mapped to host port `5433` by default; the containers use the
+internal PostgreSQL port `5432`. If `5433` is unavailable too, set a free host
+port before starting Compose, for example:
+
+```powershell
+$env:POSTGRES_HOST_PORT = "15432"
+docker compose -f examples/hybrid_search_api/compose.yaml up --build
+```
+
 Open `http://localhost:8000/docs` for the interactive API documentation.
 Create a document using `POST /documents`, then search using `GET /search?q=...`.
 Run the indexing worker in another terminal:
@@ -43,6 +52,7 @@ The worker and API require the same environment variables. The application
 does not automatically load `.env` files; use your shell or a local environment
 manager when running outside Compose. Stop the local services with
 `docker compose -f examples/hybrid_search_api/compose.yaml down`.
+Clear the optional port override with `Remove-Item Env:POSTGRES_HOST_PORT`.
 
 ## Provider credentials
 

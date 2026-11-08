@@ -468,6 +468,7 @@ LEARNING_ORDER = [slug for _section, slugs in ROADMAP_SECTIONS for slug in slugs
 
 
 def build_guide(topic: tuple[str, ...], notebook_name: str) -> str:
+    """Render a standalone guide whose links use the topic's assigned sequence."""
     _, title, track, idea, analogy, example, case_study, _code = topic
     return f"""# {title}
 
@@ -532,6 +533,7 @@ shows how several search and production concepts fit together.
 
 
 def build_roadmap(topics_by_slug: dict[str, tuple[str, ...]]) -> str:
+    """Render the ordered roadmap from the same sections used for file numbering."""
     lines = [
         "# Learning roadmap",
         "",
@@ -584,6 +586,7 @@ def build_roadmap(topics_by_slug: dict[str, tuple[str, ...]]) -> str:
 def build_notebook(
     topic: tuple[str, ...], guide_name: str
 ) -> dict[str, object]:
+    """Choose the comprehensive local, AI-specific, or provider lesson builder."""
     slug, title, track, idea, analogy, example, case_study, code = topic
     if slug == "ai":
         return build_ai_notebook(guide_name)
@@ -679,6 +682,11 @@ Continue with the [concept guide](../guides/concepts/{guide_name}) and the
 def build_comprehensive_notebook(
     topic: tuple[str, ...], guide_name: str, steps: list[LessonStep]
 ) -> dict[str, object]:
+    """Build a runnable notebook with explanatory markdown before each code step.
+
+    Keeping the explanation beside its implementation makes the notebooks
+    self-guiding even when read outside the repository roadmap.
+    """
     slug, title, track, idea, analogy, _example, case_study, _code = topic
     cells: list[dict[str, object]] = [
         {
@@ -794,7 +802,12 @@ def build_comprehensive_notebook(
 
 
 def build_ai_notebook(guide_name: str) -> dict[str, object]:
-    """Create an end-to-end, offline supervised-learning lesson for AI."""
+    """Create an end-to-end, offline supervised-learning lesson for AI.
+
+    Synthetic data keeps execution reproducible and private; held-out evaluation
+    and a human-review action demonstrate why a toy classifier is not a safety
+    decision system.
+    """
     cells = [
         {
             "cell_type": "markdown",
@@ -1164,6 +1177,7 @@ def build_ai_notebook(guide_name: str) -> dict[str, object]:
 
 
 def main() -> None:
+    """Generate guides, notebooks, and roadmap from the single topic registry."""
     concepts = ROOT / "guides" / "concepts"
     notebooks = ROOT / "notebooks"
     concepts.mkdir(parents=True, exist_ok=True)
@@ -1171,6 +1185,8 @@ def main() -> None:
     topics_by_slug = {topic[0]: topic for topic in TOPICS}
     if len(topics_by_slug) != len(TOPICS) or set(topics_by_slug) != set(LEARNING_ORDER):
         raise ValueError("LEARNING_ORDER must contain every topic exactly once")
+    # Fail before writing files if any topic would have only a shallow fallback
+    # or no lesson at all; this protects the repository's runnable-depth promise.
     covered_topics = set(LESSONS) | {
         "ollama",
         "openai",
@@ -1211,6 +1227,8 @@ def main() -> None:
     for folder, suffix in ((concepts, ".md"), (notebooks, ".ipynb")):
         for stale_path in folder.glob(f"[0-9][0-9][0-9]-*{suffix}"):
             if stale_path.stem not in expected_stems:
+                # Remove only numbered generated assets absent from the current
+                # catalog; hand-authored files and unrelated files stay intact.
                 stale_path.unlink()
 
     for slug in topics_by_slug:

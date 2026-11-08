@@ -6,6 +6,11 @@ from llama_index.core.llms import MockLLM
 
 
 def main() -> None:
+    """Index sample policy documents using mock components and query the index.
+
+    Mock models keep this walkthrough offline and reproducible; they illustrate
+    LlamaIndex plumbing, not retrieval relevance or generated answer quality.
+    """
     Settings.embed_model = MockEmbedding(embed_dim=8)
     Settings.llm = MockLLM(max_tokens=64)
     documents = [

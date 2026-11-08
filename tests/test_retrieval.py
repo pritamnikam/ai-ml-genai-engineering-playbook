@@ -1,3 +1,5 @@
+"""Check deterministic ranking, fusion, and demo-embedding contracts."""
+
 import math
 
 import pytest
@@ -7,6 +9,7 @@ from examples.hybrid_search_api.app.retrieval import bm25_rank, reciprocal_rank_
 
 
 def test_bm25_prefers_matching_document() -> None:
+    """Return a relevant document and exclude a document with no query terms."""
     documents = [
         {"id": "a", "title": "Password reset", "content": "Reset an account password."},
         {"id": "b", "title": "Shipping", "content": "Track a delivery."},
@@ -15,6 +18,7 @@ def test_bm25_prefers_matching_document() -> None:
 
 
 def test_bm25_ties_are_stable_and_limit_is_respected() -> None:
+    """Keep tied rankings deterministic and honor the caller's result limit."""
     documents = [
         {"id": "b", "title": "Common term", "content": ""},
         {"id": "a", "title": "Common term", "content": ""},
@@ -23,6 +27,7 @@ def test_bm25_ties_are_stable_and_limit_is_respected() -> None:
 
 
 def test_bm25_validates_parameters() -> None:
+    """Reject invalid scoring settings rather than silently returning results."""
     with pytest.raises(ValueError):
         bm25_rank("term", [], limit=-1)
     with pytest.raises(ValueError):
@@ -30,6 +35,7 @@ def test_bm25_validates_parameters() -> None:
 
 
 def test_rrf_combines_rankings_and_counts_each_item_once_per_list() -> None:
+    """Prevent duplicate IDs from giving a source ranking extra weight."""
     results = reciprocal_rank_fusion(
         [["a", "a", "b"], ["b", "a"]], k=0
     )
@@ -37,11 +43,13 @@ def test_rrf_combines_rankings_and_counts_each_item_once_per_list() -> None:
 
 
 def test_rrf_rejects_negative_offset() -> None:
+    """Reject an invalid RRF rank offset before scoring results."""
     with pytest.raises(ValueError):
         reciprocal_rank_fusion([["a"]], k=-1)
 
 
 def test_demo_embedding_is_normalized_and_deterministic() -> None:
+    """Keep toy vectors stable across repeated calls and unit length."""
     first = demo_embedding("A small example")
     second = demo_embedding("A small example")
     assert first == second
@@ -49,5 +57,6 @@ def test_demo_embedding_is_normalized_and_deterministic() -> None:
 
 
 def test_demo_embedding_validates_dimensions() -> None:
+    """Require a positive vector size so the hash buckets are well-defined."""
     with pytest.raises(ValueError):
         demo_embedding("text", dimensions=0)

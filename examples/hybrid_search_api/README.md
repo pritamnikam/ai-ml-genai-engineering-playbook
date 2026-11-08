@@ -12,6 +12,25 @@ From the repository root:
 docker compose -f examples/hybrid_search_api/compose.yaml up --build
 ```
 
+PostgreSQL is published on `127.0.0.1:5433` by default to avoid common local
+PostgreSQL port conflicts. The API and worker connect to PostgreSQL over the
+Compose network on port `5432`; this host mapping does not change their
+connection. If host port `5433` is also unavailable, choose another port before
+starting Compose:
+
+```powershell
+$env:POSTGRES_HOST_PORT = "15432"
+docker compose -f examples/hybrid_search_api/compose.yaml up --build
+```
+
+In another PowerShell window, use the same host port if connecting to PostgreSQL
+directly from your machine. Clear the override afterward if you want to return
+to the default:
+
+```powershell
+Remove-Item Env:POSTGRES_HOST_PORT
+```
+
 Open [http://localhost:8000/docs](http://localhost:8000/docs). Add a document:
 
 ```powershell

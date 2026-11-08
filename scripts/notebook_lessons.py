@@ -1,4 +1,9 @@
-"""Runnable, offline implementations used to expand each concept notebook."""
+"""Runnable implementations and teaching notes used to generate concept notebooks.
+
+Each lesson step couples a short explanation with an executable code cell.
+The notebook generator places the explanation immediately before its code so
+readers understand both what the example does and why its choices matter.
+"""
 
 from __future__ import annotations
 
@@ -6,15 +11,19 @@ from typing import NamedTuple
 
 
 class LessonStep(NamedTuple):
+    """One ordered notebook step: heading, conceptual rationale, and code."""
+
     heading: str
     explanation: str
     code: str
 
 
 def step(heading: str, explanation: str, code: str) -> LessonStep:
+    """Create a lesson step while trimming only surrounding blank lines."""
     return LessonStep(heading, explanation, code.strip("\n"))
 
 
+# The registry is the source of truth for local, executable concept lessons.
 LESSONS: dict[str, list[LessonStep]] = {
     "python-for-ai": [
         step("1. Load and inspect tabular data", "AI work starts with understanding the shape, types, and missing values in the input—not immediately calling a model.", """
@@ -2123,6 +2132,11 @@ PROVIDER_LESSONS: dict[str, tuple[str, str]] = {
 
 
 def provider_lesson(slug: str) -> list[LessonStep]:
+    """Build an offline-first lesson with an explicitly gated provider call.
+
+    Provider execution is disabled by default so running all notebooks does not
+    require credentials, make network requests, or incur usage charges.
+    """
     required_setting, model_setting = PROVIDER_LESSONS[slug]
     title = slug.replace("-", " ").title()
     endpoint = {

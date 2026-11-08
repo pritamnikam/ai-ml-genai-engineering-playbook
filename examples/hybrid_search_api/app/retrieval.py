@@ -1,3 +1,5 @@
+"""Offline lexical ranking and rank fusion helpers for the hybrid-search API."""
+
 import math
 import re
 from collections import Counter
@@ -5,6 +7,7 @@ from collections.abc import Sequence
 
 
 def tokenize(text: str) -> list[str]:
+    """Lowercase text and split it into simple alphanumeric terms."""
     return re.findall(r"\w+", text.lower())
 
 
@@ -16,7 +19,11 @@ def bm25_rank(
     k1: float = 1.5,
     b: float = 0.75,
 ) -> list[str]:
-    """Rank document IDs with BM25; ties are broken by ID for repeatability."""
+    """Rank document IDs with BM25; ties are broken by ID for repeatability.
+
+    Query terms are unique so repeating a word in the query does not accidentally
+    multiply its contribution; document term frequency still influences scores.
+    """
     if limit < 0:
         raise ValueError("limit must not be negative")
     if k1 < 0 or not 0 <= b <= 1:
@@ -53,6 +60,7 @@ def bm25_rank(
             )
         scores.append((document["id"], score))
 
+    # Stable tie-breaking makes results and tests repeatable across runs.
     scores.sort(key=lambda item: (-item[1], item[0]))
     return [document_id for document_id, score in scores if score > 0][:limit]
 
@@ -60,7 +68,11 @@ def bm25_rank(
 def reciprocal_rank_fusion(
     rankings: Sequence[Sequence[str]], *, k: int = 60
 ) -> list[tuple[str, float]]:
-    """Fuse ranked IDs; each ID contributes at most once per input ranking."""
+    """Fuse rankings using RRF and count each document once per source ranking.
+
+    Deduplication prevents repeated IDs in a malformed or overlapping ranking
+    from giving that source extra voting weight.
+    """
     if k < 0:
         raise ValueError("k must not be negative")
 
@@ -69,4 +81,5 @@ def reciprocal_rank_fusion(
         for rank, document_id in enumerate(dict.fromkeys(ranking), start=1):
             scores[document_id] = scores.get(document_id, 0.0) + 1 / (k + rank)
 
+    # The ID tie-break keeps fused output deterministic when scores match.
     return sorted(scores.items(), key=lambda item: (-item[1], item[0]))

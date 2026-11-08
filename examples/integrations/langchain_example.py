@@ -4,6 +4,11 @@ import os
 
 
 def build_chain():
+    """Build a grounded-answer chain after confirming hosted credentials exist.
+
+    Imports are deferred until after the credential check so an offline user
+    does not need the LangChain/OpenAI extras just to import this module.
+    """
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("Set OPENAI_API_KEY before invoking the hosted-model chain")
     from langchain_core.output_parsers import StrOutputParser

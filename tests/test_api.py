@@ -1,3 +1,5 @@
+"""Verify API transaction boundaries and hybrid-search response behavior."""
+
 from types import SimpleNamespace
 
 import psycopg
@@ -8,6 +10,8 @@ from examples.hybrid_search_api.app import main
 
 
 class FakeConnection:
+    """Capture SQL issued by endpoints without requiring a live PostgreSQL server."""
+
     def __init__(self, rows=None):
         self.statements = []
         self.rows = rows or []
@@ -28,6 +32,7 @@ class FakeConnection:
 
 
 def test_create_document_writes_document_and_outbox_together(monkeypatch) -> None:
+    """Keep source data and the request to index it in the same transaction."""
     connection = FakeConnection()
     monkeypatch.setattr(main, "connect", lambda: connection)
 
@@ -45,6 +50,7 @@ def test_create_document_writes_document_and_outbox_together(monkeypatch) -> Non
 
 
 def test_create_document_surfaces_database_failure(monkeypatch) -> None:
+    """Translate a database outage to an explicit service-unavailable response."""
     def fail_connect():
         raise psycopg.OperationalError("database unavailable")
 
@@ -57,6 +63,7 @@ def test_create_document_surfaces_database_failure(monkeypatch) -> None:
 
 
 def test_search_fuses_lexical_and_vector_results(monkeypatch) -> None:
+    """Include source attribution when BM25 and Qdrant find the same document."""
     document_id = "00000000-0000-0000-0000-000000000001"
     connection = FakeConnection(
         [{"id": document_id, "title": "Password reset", "content": "Reset credentials."}]

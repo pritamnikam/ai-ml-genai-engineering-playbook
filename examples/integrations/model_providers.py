@@ -1,4 +1,9 @@
-"""Opt-in model calls; install the matching extra and provide credentials."""
+"""Opt-in model calls; install the matching extra and provide credentials.
+
+SDK imports are kept inside provider functions so users can install only the
+integration they need and use the offline lessons without cloud dependencies.
+These helpers call existing services; they do not provision billable resources.
+"""
 
 import json
 import os
@@ -6,6 +11,7 @@ from urllib.request import Request, urlopen
 
 
 def ask_openai(prompt: str) -> str:
+    """Send one text prompt to the configured OpenAI Responses API model."""
     from openai import OpenAI
 
     response = OpenAI().responses.create(
@@ -16,6 +22,7 @@ def ask_openai(prompt: str) -> str:
 
 
 def ask_gemini(prompt: str) -> str:
+    """Generate text with Gemini and reject an empty provider response."""
     from google import genai
 
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -29,6 +36,7 @@ def ask_gemini(prompt: str) -> str:
 
 
 def ask_anthropic(prompt: str) -> str:
+    """Send one user message to Claude and require a textual response block."""
     import anthropic
 
     response = anthropic.Anthropic().messages.create(
@@ -42,6 +50,7 @@ def ask_anthropic(prompt: str) -> str:
 
 
 def ask_ollama(prompt: str) -> str:
+    """Call a locally running Ollama chat endpoint without streaming output."""
     endpoint = os.getenv("OLLAMA_URL", "http://localhost:11434")
     model = os.getenv("OLLAMA_MODEL")
     if not model:
@@ -61,6 +70,7 @@ def ask_ollama(prompt: str) -> str:
 
 
 def ask_docker_model_runner(prompt: str) -> str:
+    """Call Docker Model Runner through its OpenAI-compatible API."""
     from openai import OpenAI
 
     client = OpenAI(
@@ -83,6 +93,7 @@ def ask_docker_model_runner(prompt: str) -> str:
 
 
 def ask_bedrock(prompt: str) -> str:
+    """Call an already-enabled Bedrock model through the Converse API."""
     import boto3
 
     model_id = os.getenv("BEDROCK_MODEL_ID")
@@ -102,7 +113,11 @@ def ask_bedrock(prompt: str) -> str:
 
 
 def invoke_sagemaker(prompt: str) -> dict[str, object]:
-    """Invoke an existing endpoint; this function does not provision resources."""
+    """Invoke an existing SageMaker endpoint; this does not provision resources.
+
+    The endpoint response is decoded as JSON so the caller can validate its
+    application-specific shape before using the prediction.
+    """
     import boto3
 
     endpoint_name = os.getenv("SAGEMAKER_ENDPOINT_NAME")

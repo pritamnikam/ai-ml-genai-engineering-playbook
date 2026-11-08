@@ -1,3 +1,5 @@
+"""Validate generated lesson links and execute every offline notebook cell."""
+
 import json
 import re
 from pathlib import Path
@@ -8,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_every_concept_has_a_guide_and_runnable_notebook() -> None:
+    """Keep guide/notebook numbering aligned and each checked-in lesson runnable."""
     guides = sorted(
         path.stem for path in (ROOT / "guides" / "concepts").glob("[0-9][0-9][0-9]-*.md")
     )
@@ -53,6 +56,7 @@ def test_every_concept_has_a_guide_and_runnable_notebook() -> None:
 
 
 def test_ai_lesson_is_a_complete_supervised_learning_workflow() -> None:
+    """Guard the AI notebook's training, held-out evaluation, and review stages."""
     notebook_path = next((ROOT / "notebooks").glob("[0-9][0-9][0-9]-ai.ipynb"))
     notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
     code_cells = [
@@ -76,6 +80,7 @@ def test_ai_lesson_is_a_complete_supervised_learning_workflow() -> None:
 
 
 def test_roadmap_matches_numbered_lesson_order() -> None:
+    """Ensure every numbered guide appears once in the published roadmap order."""
     roadmap = (ROOT / "guides" / "ROADMAP.md").read_text(encoding="utf-8")
     roadmap_guides = re.findall(r"\]\(concepts/(\d{3}-[a-z0-9-]+\.md)\)", roadmap)
     expected_guides = sorted(

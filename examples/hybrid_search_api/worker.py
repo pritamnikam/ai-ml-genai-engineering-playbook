@@ -1,3 +1,5 @@
+"""Deliver PostgreSQL outbox events to Qdrant with leased, retryable claims."""
+
 import logging
 import time
 from uuid import UUID
@@ -14,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 def ensure_collection(client: QdrantClient) -> None:
+    """Create the configured Qdrant collection if the worker starts first."""
+    # The existence check makes repeated worker starts safe for an existing collection.
     if not client.collection_exists(settings.qdrant_collection):
         client.create_collection(
             collection_name=settings.qdrant_collection,
@@ -24,6 +28,11 @@ def ensure_collection(client: QdrantClient) -> None:
 
 
 def claim_one() -> tuple[str, dict[str, str]] | None:
+    """Claim the oldest pending or expired event in a short DB transaction.
+
+    ``SKIP LOCKED`` lets multiple workers claim different rows concurrently;
+    the one-minute lease makes an abandoned claim eligible for another attempt.
+    """
     with connect() as connection:
         row = connection.execute(
             """
@@ -50,11 +59,15 @@ def claim_one() -> tuple[str, dict[str, str]] | None:
 
 
 def process_one(client: QdrantClient) -> bool:
+    """Index one claimed event and mark it complete only after Qdrant succeeds."""
     event = claim_one()
     if event is None:
         return False
     event_id, payload = event
     document_id = payload["document_id"]
+    # PostgreSQL and Qdrant cannot share a transaction. Upsert first, then mark
+    # processed: a crash can cause a duplicate, so the stable document UUID makes
+    # the retry idempotent instead of risking a lost index update.
     client.upsert(
         collection_name=settings.qdrant_collection,
         wait=True,
@@ -85,12 +98,14 @@ def process_one(client: QdrantClient) -> bool:
 
 
 def main() -> None:
+    """Run the worker continuously, polling when no event is currently ready."""
     client = qdrant_client()
     try:
         ensure_collection(client)
         logger.info("Outbox worker started")
         while True:
             if not process_one(client):
+                # Avoid a busy loop while keeping the demo worker simple.
                 time.sleep(1)
     finally:
         client.close()
