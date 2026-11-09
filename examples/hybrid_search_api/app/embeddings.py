@@ -1,35 +1,58 @@
-"""Provide deterministic hash vectors for exercising the local search pipeline.
+"""Call the local Ollama embedding model for semantic indexing and retrieval."""
 
-These vectors make the example reproducible without downloading a model, but
-they do not encode semantic similarity and must not be used as real embeddings.
-"""
-
-import hashlib
+import json
 import math
-import re
+from urllib.error import URLError
+from urllib.request import Request, urlopen
+
+from examples.hybrid_search_api.app.config import settings
 
 
-def demo_embedding(text: str, dimensions: int = 64) -> list[float]:
-    """Return a normalized, deterministic signed-hash vector for local demos.
+class EmbeddingError(RuntimeError):
+    """Raised when the local embedding service cannot provide a valid vector."""
 
-    SHA-256 avoids Python's process-randomized built-in hash, so indexing and
-    querying the same token produce compatible vectors across restarts.
+
+def embed_text(text: str, *, purpose: str) -> list[float]:
+    """Create one configured-model embedding for a document chunk or query.
+
+    Nomic Embed expects distinct task prefixes. Matching the document and query
+    prefixes is important because the model was trained for asymmetric search.
     """
-    if dimensions < 1:
-        raise ValueError("dimensions must be positive")
+    if not text.strip():
+        raise ValueError("text must not be empty")
+    if purpose not in {"document", "query"}:
+        raise ValueError("purpose must be 'document' or 'query'")
 
-    vector = [0.0] * dimensions
-    tokens = re.findall(r"\w+", text.lower())
-    for token in tokens:
-        digest = hashlib.sha256(token.encode("utf-8")).digest()
-        # Two digest bytes select a stable bucket and sign; collisions are an
-        # accepted trade-off for this small, dependency-free wiring example.
-        index = int.from_bytes(digest[:4], "big") % dimensions
-        sign = 1.0 if digest[4] % 2 == 0 else -1.0
-        vector[index] += sign
+    prefix = "search_document: " if purpose == "document" else "search_query: "
+    request_body = json.dumps(
+        {
+            "model": settings.embedding_model,
+            "input": prefix + text,
+            "truncate": False,
+        }
+    ).encode("utf-8")
+    request = Request(
+        settings.embedding_url,
+        data=request_body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=settings.embedding_timeout_seconds) as response:
+            result = json.load(response)
+    except (URLError, TimeoutError, json.JSONDecodeError) as error:
+        raise EmbeddingError("The local embedding service request failed") from error
 
-    magnitude = math.sqrt(sum(value * value for value in vector))
-    if magnitude:
-        # Unit length makes cosine-distance comparisons independent of text length.
-        vector = [value / magnitude for value in vector]
-    return vector
+    if not isinstance(result, dict):
+        raise EmbeddingError("The embedding service returned an invalid response")
+    embeddings = result.get("embeddings")
+    if not isinstance(embeddings, list) or len(embeddings) != 1:
+        raise EmbeddingError("The embedding service returned an invalid response")
+    vector = embeddings[0]
+    if (
+        not isinstance(vector, list)
+        or len(vector) != settings.vector_size
+        or any(not isinstance(value, (int, float)) or not math.isfinite(value) for value in vector)
+    ):
+        raise EmbeddingError("The embedding service returned an invalid vector")
+    return [float(value) for value in vector]

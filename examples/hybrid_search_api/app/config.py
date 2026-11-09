@@ -18,8 +18,11 @@ class Settings:
         "postgresql://playbook:playbook-local-demo-only@localhost:5432/playbook",
     )
     qdrant_url: str = os.getenv("QDRANT_URL", "http://localhost:6333")
-    qdrant_collection: str = os.getenv("QDRANT_COLLECTION", "playbook_documents")
-    vector_size: int = int(os.getenv("VECTOR_SIZE", "64"))
+    qdrant_collection: str = os.getenv("QDRANT_COLLECTION", "playbook_pdf_chunks")
+    vector_size: int = int(os.getenv("VECTOR_SIZE", "768"))
+    embedding_url: str = os.getenv("EMBEDDING_URL", "http://localhost:11434/api/embed")
+    embedding_model: str = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+    embedding_timeout_seconds: float = float(os.getenv("EMBEDDING_TIMEOUT_SECONDS", "30"))
 
 
 settings = Settings()

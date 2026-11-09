@@ -40,19 +40,20 @@ $env:POSTGRES_HOST_PORT = "15432"
 docker compose -f examples/hybrid_search_api/compose.yaml up --build
 ```
 
-Open `http://localhost:8000/docs` for the interactive API documentation.
-Create a document using `POST /documents`, then search using `GET /search?q=...`.
-Run the indexing worker in another terminal:
+The Compose stack also starts Qdrant and a local Ollama embedding service,
+pulls `nomic-embed-text` on its first start, and runs the indexing worker.
+Allow the initial model download to finish, then open
+`http://localhost:8000/docs`. Upload a PDF at `POST /documents/pdf`, search it
+with `GET /search?q=...`, and follow the returned `source_url#page=N` to view
+the evidence page. See the [API guide](../examples/hybrid_search_api/README.md)
+for the full workflow, limits, and cleanup instructions.
 
-```powershell
-python -m examples.hybrid_search_api.worker
-```
-
-The worker and API require the same environment variables. The application
-does not automatically load `.env` files; use your shell or a local environment
-manager when running outside Compose. Stop the local services with
-`docker compose -f examples/hybrid_search_api/compose.yaml down`.
-Clear the optional port override with `Remove-Item Env:POSTGRES_HOST_PORT`.
+Compose supplies the service URLs and model configuration to both the API and
+worker. Stop the local services with
+`docker compose -f examples/hybrid_search_api/compose.yaml down`. This preserves
+the named volumes; adding `-v` deletes the database, uploaded PDFs, Qdrant
+vectors, and downloaded embedding model. Clear the optional port override with
+`Remove-Item Env:POSTGRES_HOST_PORT`.
 
 ## Provider credentials
 

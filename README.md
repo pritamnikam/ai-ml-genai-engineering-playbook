@@ -47,22 +47,22 @@ tests/                       Offline tests for ranking and API behavior
 
 ```mermaid
 flowchart LR
-    C[Client] --> API[FastAPI]
-    API -->|same transaction| PG[(PostgreSQL documents + outbox)]
-    W[Outbox worker] -->|claim and retry| PG
-    W -->|idempotent vector upsert| Q[(Qdrant)]
-    PG -->|candidate documents| API
-    Q -->|vector ranking| API
-    API -->|BM25 + RRF| R[Hybrid results]
-    R --> C
+    U[User + PDF] --> API[FastAPI]
+    API -->|source + page chunks + outbox| PG[(PostgreSQL)]
+    W[Outbox worker] -->|document embeddings| O[Ollama]
+    W -->|idempotent upsert| Q[(Qdrant)]
+    PG -->|chunk corpus| API
+    API -->|query embedding| O
+    Q -->|semantic ranking| API
+    API -->|RRF + page citation| U
 ```
 
-The example's hash-based vectorizer is deterministic and dependency-light; it
-is a wiring demonstration, **not** a semantic embedding model. Replace it with
-a real embedding provider before using the system for relevance-sensitive work.
-The outbox makes the PostgreSQL write and indexing request atomic; Qdrant
-delivery is asynchronous and at-least-once, so the worker uses idempotent
-upserts.
+The [PDF hybrid-search app](examples/hybrid_search_api/README.md) runs
+`nomic-embed-text` locally through Ollama in Docker Compose. It combines
+standard-library BM25 with Qdrant semantic retrieval using reciprocal-rank
+fusion and returns citations to the original PDF page. PostgreSQL commits each
+source, its chunks, and outbox events atomically; asynchronous indexing is
+at-least-once and uses idempotent upserts.
 
 ## Prerequisites
 

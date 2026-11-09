@@ -28,6 +28,30 @@ services:
       timeout: 3s
       retries: 10
 
+  ollama:
+    image: ollama/ollama:0.11.10
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  ollama-model:
+    image: ollama/ollama:0.11.10
+    entrypoint: ["/bin/ollama"]
+    command: ["pull", "${EMBEDDING_MODEL:-nomic-embed-text}"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    volumes:
+      - ollama_data:/root/.ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
   api:
     build:
       context: ../..
@@ -35,8 +59,11 @@ services:
     environment:
       DATABASE_URL: postgresql://playbook:playbook-local-demo-only@postgres:5432/playbook
       QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: playbook_documents
-      VECTOR_SIZE: "64"
+      QDRANT_COLLECTION: playbook_pdf_chunks
+      VECTOR_SIZE: "768"
+      EMBEDDING_URL: http://ollama:11434/api/embed
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_TIMEOUT_SECONDS: "60"
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -54,6 +81,8 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+      ollama-model:
+        condition: service_completed_successfully
 
   worker:
     build:
@@ -64,8 +93,11 @@ services:
     environment:
       DATABASE_URL: postgresql://playbook:playbook-local-demo-only@postgres:5432/playbook
       QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: playbook_documents
-      VECTOR_SIZE: "64"
+      QDRANT_COLLECTION: playbook_pdf_chunks
+      VECTOR_SIZE: "768"
+      EMBEDDING_URL: http://ollama:11434/api/embed
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_TIMEOUT_SECONDS: "60"
     depends_on:
       api:
         condition: service_healthy
@@ -73,3 +105,4 @@ services:
 volumes:
   postgres_data:
   qdrant_data:
+  ollama_data:
