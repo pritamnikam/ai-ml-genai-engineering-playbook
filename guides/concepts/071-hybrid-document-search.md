@@ -133,3 +133,7 @@ and [reciprocal-rank fusion](046-rrf.md). The
 [hybrid-search API](../../examples/hybrid_search_api/README.md) shows a
 production-oriented alternative using PostgreSQL, Ollama, Qdrant, and an
 outbox worker.
+
+For an orchestrated agent version with a visible LangGraph DAG and optional
+local answer generation, continue to
+[Hybrid document-search agent with LangGraph and Ollama](072-hybrid-document-search-agent.md).

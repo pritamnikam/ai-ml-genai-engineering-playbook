@@ -48,7 +48,11 @@ def test_every_concept_has_a_guide_and_runnable_notebook() -> None:
             if cell["cell_type"] == "code":
                 source = "".join(cell["source"])
                 compile(source, str(notebook_path), "exec")
-                if "requires_model_download" in cell.get("metadata", {}).get("tags", []):
+                external_tags = {
+                    "requires_model_download",
+                    "requires_optional_dependencies",
+                }
+                if external_tags.intersection(cell.get("metadata", {}).get("tags", [])):
                     continue
                 exec(source, namespace)  # noqa: S102 - run trusted checked-in lessons
         code_cell_count = sum(cell["cell_type"] == "code" for cell in notebook["cells"])
@@ -103,6 +107,63 @@ def test_every_concept_has_a_guide_and_runnable_notebook() -> None:
             )
             graph_match = next(result for result in search_results if result["id"] == "chunk-3")
             assert "knowledge_graph" in graph_match["matched_by"]
+        if slug == "072-hybrid-document-search-agent":
+            assert "StateGraph" in notebook_text
+            assert "draw_mermaid()" in notebook_text
+            assert "ChatOllama" in notebook_text
+
+            class FakeVector:
+                """Stand in for an encoded query in the deterministic DAG test."""
+
+                def astype(self, _dtype):
+                    return self
+
+            class FakeEmbeddingModel:
+                """Avoid network access while testing the semantic node wiring."""
+
+                def encode(self, _texts, **_kwargs):
+                    return FakeVector()
+
+            class FakeVectorIndex:
+                """Return a known candidate ordering through the FAISS-style interface."""
+
+                def search(self, _query_vector, limit):
+                    order = [2, 1, 0, 3, 4, 5][:limit]
+                    return [[1.0] * len(order)], [order]
+
+            namespace.update(
+                {
+                    "embedding_model": FakeEmbeddingModel(),
+                    "vector_index": FakeVectorIndex(),
+                    "vector_document_ids": [chunk["id"] for chunk in namespace["chunks"]],
+                }
+            )
+            state = {
+                "query": "Which advisory affects firmware on Device-D1?",
+                "category": "ProductDocuments",
+                "seed_entity": "Device-D1",
+                "top_k": 5,
+                "generate_answer": False,
+            }
+            for node in (
+                namespace["validate_request_node"],
+                namespace["taxonomy_filter_node"],
+                namespace["lexical_retrieval_node"],
+                namespace["semantic_retrieval_node"],
+                namespace["graph_retrieval_node"],
+                namespace["fuse_and_resolve_node"],
+            ):
+                state.update(node(state))
+            state.update(namespace["evidence_only_node"](state))
+            evidence_ids = {item["id"] for item in state["evidence"]}
+            assert "chunk-3" in evidence_ids
+            assert all(
+                item["category"] in {"DeviceDocs", "SecurityDocs"}
+                for item in state["evidence"]
+            )
+            advisory = next(item for item in state["evidence"] if item["id"] == "chunk-3")
+            assert advisory["citation"] == "security-bulletin.pdf#page=3"
+            assert "knowledge_graph" in advisory["matched_by"]
 
 
 def test_ai_lesson_is_a_complete_supervised_learning_workflow() -> None:

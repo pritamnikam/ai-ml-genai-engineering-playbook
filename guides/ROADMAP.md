@@ -101,6 +101,7 @@ before moving from foundational methods to deployed AI systems.
 
 70. [Semantic document search with FAISS](concepts/070-semantic-document-search.md)
 71. [Hybrid document search with taxonomy, ontology, and knowledge graphs](concepts/071-hybrid-document-search.md)
+72. [Hybrid document-search agent with LangGraph and Ollama](concepts/072-hybrid-document-search-agent.md)
 
 ## Suggested project sequence
 
