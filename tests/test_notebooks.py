@@ -48,11 +48,61 @@ def test_every_concept_has_a_guide_and_runnable_notebook() -> None:
             if cell["cell_type"] == "code":
                 source = "".join(cell["source"])
                 compile(source, str(notebook_path), "exec")
+                if "requires_model_download" in cell.get("metadata", {}).get("tags", []):
+                    continue
                 exec(source, namespace)  # noqa: S102 - run trusted checked-in lessons
         code_cell_count = sum(cell["cell_type"] == "code" for cell in notebook["cells"])
         assert code_cell_count >= 3, f"{notebook_path.name} needs a multi-step implementation"
         if slug[4:] == "ai":
             assert namespace["predictions"][0]["action"] == "human_review"
+        if slug == "070-semantic-document-search":
+            assert namespace["documents"]
+            assert len(namespace["documents"]) == len(namespace["doc_sources"])
+        if slug == "071-hybrid-document-search":
+            assert all(namespace["validate_fact"](fact) for fact in namespace["facts"])
+            assert not namespace["validate_fact"](namespace["invalid_fact"])
+            assert "chunk-3" in namespace["graph_search"]("Device-D1")
+            assert namespace["fused_demo"]
+            import faiss
+            from sklearn.feature_extraction.text import TfidfVectorizer
+
+            vectorizer = TfidfVectorizer()
+            test_vectors = vectorizer.fit_transform(
+                [chunk["text"] for chunk in namespace["chunks"]]
+            ).toarray().astype("float32")
+            faiss.normalize_L2(test_vectors)
+            test_index = faiss.IndexFlatIP(test_vectors.shape[1])
+            test_index.add(test_vectors)
+
+            class OfflineEmbedding:
+                """Use deterministic local vectors to test fusion without model downloads."""
+
+                def __init__(self, vectorizer):
+                    self.vectorizer = vectorizer
+
+                def encode(self, texts, convert_to_numpy=True):
+                    return self.vectorizer.transform(texts).toarray().astype("float32")
+
+            namespace.update(
+                {
+                    "embedding_model": OfflineEmbedding(vectorizer),
+                    "vector_index": test_index,
+                    "faiss": faiss,
+                }
+            )
+            search_results = namespace["hybrid_search"](
+                "Which security advisory affects the firmware on Device-D1?",
+                category="ProductDocuments",
+                seed_entity="Device-D1",
+                top_k=5,
+            )
+            assert any(result["id"] == "chunk-3" for result in search_results)
+            assert all(
+                result["category"] in {"DeviceDocs", "SecurityDocs"}
+                for result in search_results
+            )
+            graph_match = next(result for result in search_results if result["id"] == "chunk-3")
+            assert "knowledge_graph" in graph_match["matched_by"]
 
 
 def test_ai_lesson_is_a_complete_supervised_learning_workflow() -> None:

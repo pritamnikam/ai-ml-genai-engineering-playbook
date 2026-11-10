@@ -3,7 +3,7 @@
 ## Suggested repository details
 
 - **Name:** `ai-ml-genai-engineering-playbook`
-- **Description:** `A hands-on AI/ML and GenAI engineering curriculum with 69 runnable notebooks, concept guides, and a FastAPI hybrid-search reference app.`
+- **Description:** `A hands-on AI/ML and GenAI engineering curriculum with 71 runnable notebooks, concept guides, and a FastAPI hybrid-search reference app.`
 - **Visibility:** Public is useful for sharing a portfolio and learning resource; choose private if you want to review the repository before publishing.
 
 The workspace already has Git initialized on `main`, but it has no commits or
@@ -16,7 +16,7 @@ Install and authenticate with GitHub CLI (`gh auth login`), then run these
 commands from the workspace root in PowerShell:
 
 ```powershell
-gh repo create ai-ml-genai-engineering-playbook --source . --remote origin --public --description "A hands-on AI/ML and GenAI engineering curriculum with 69 runnable notebooks, concept guides, and a FastAPI hybrid-search reference app."
+gh repo create ai-ml-genai-engineering-playbook --source . --remote origin --public --description "A hands-on AI/ML and GenAI engineering curriculum with 71 runnable notebooks, concept guides, and a FastAPI hybrid-search reference app."
 git add .
 git status --short
 git diff --cached --check

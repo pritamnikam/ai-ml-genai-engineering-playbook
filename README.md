@@ -9,7 +9,7 @@ transactional outbox.
 ## Suggested GitHub repository
 
 - **Repository name:** `ai-ml-genai-engineering-playbook`
-- **Description:** `A hands-on AI/ML and GenAI engineering curriculum with 69 runnable notebooks, concept guides, and a FastAPI hybrid-search reference app.`
+- **Description:** `A hands-on AI/ML and GenAI engineering curriculum with 71 runnable notebooks, concept guides, and a FastAPI hybrid-search reference app.`
 
 See [GitHub setup](guides/GITHUB_SETUP.md) for steps to create a new public or
 private repository, push this workspace, and get started with the curriculum.
@@ -76,7 +76,7 @@ See [setup](guides/SETUP.md), [contribution guidance](CONTRIBUTING.md), and
 
 ## Scope and learning outcomes
 
-The 69-lesson curriculum starts with Python, data preparation, linear algebra,
+The 71-lesson curriculum starts with Python, data preparation, linear algebra,
 and probability, then builds through supervised, unsupervised,
 semi-supervised, and reinforcement learning; classical models, recommendation
 systems, feature engineering, neural networks, and deep learning; NLP

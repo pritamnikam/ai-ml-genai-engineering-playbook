@@ -1,6 +1,6 @@
 # Notebooks
 
-There are 69 concept notebooks. Open them in numeric order to follow the
+There are 71 concept notebooks. Open them in numeric order to follow the
 recommended sequence, starting with `001-python-for-ai.ipynb`.
 They pair with longer guides in `guides/concepts/`. Lessons combine
 explanations, staged implementations, runnable examples, and exercises. The
@@ -30,4 +30,6 @@ python -m pytest tests/test_notebooks.py
 
 Provider examples are intentionally not run by the concept notebooks, so
 exploring the core curriculum does not require credentials, network access, or
-cloud resources.
+cloud resources. The applied semantic and hybrid document-search notebooks do
+download the `all-MiniLM-L6-v2` model on first use; that model-dependent step
+needs internet access, while the notebook tests skip only those tagged cells.

@@ -68,7 +68,7 @@ before moving from foundational methods to deployed AI systems.
 45. [Semantic search](concepts/045-semantic-search.md)
 46. [Reciprocal-rank fusion](concepts/046-rrf.md)
 47. [Retrieval-augmented generation](concepts/047-rag.md)
-48. [Knowledge graphs](concepts/048-knowledge-graphs.md)
+48. [Taxonomy, ontology, and knowledge graphs](concepts/048-knowledge-graphs.md)
 49. [GraphRAG](concepts/049-graphrag.md)
 
 ## 7. Agents and orchestration frameworks
@@ -96,6 +96,11 @@ before moving from foundational methods to deployed AI systems.
 67. [Anthropic](concepts/067-anthropic.md)
 68. [Amazon SageMaker](concepts/068-amazon-sagemaker.md)
 69. [Amazon Bedrock](concepts/069-amazon-bedrock.md)
+
+## 9. Applied document search
+
+70. [Semantic document search with FAISS](concepts/070-semantic-document-search.md)
+71. [Hybrid document search with taxonomy, ontology, and knowledge graphs](concepts/071-hybrid-document-search.md)
 
 ## Suggested project sequence
 
